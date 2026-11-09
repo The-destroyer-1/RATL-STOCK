@@ -8,22 +8,18 @@ export async function GET() {
     Connection: "keep-alive",
   });
 
-  const stream = new ReadableStream({
+  let unsubscribe: (() => void) | undefined;
+  const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const subscriber = (payload: string) => {
         controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
       };
-      const unsubscribe = subscribeVehicles(subscriber);
-
-      controller.enqueue(new TextEncoder().encode("data: {\"vehicles\": []}\n\n"));
-
-      return () => {
-        unsubscribe();
-      };
+      unsubscribe = subscribeVehicles(subscriber);
+      controller.enqueue(new TextEncoder().encode('data: {"vehicles": []}\n\n'));
     },
     cancel() {
-      // Called when the client disconnects.
-      // The subscriber unregisters automatically from start's return.
+      unsubscribe?.();
+      unsubscribe = undefined;
     },
   });
 
